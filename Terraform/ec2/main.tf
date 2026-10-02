@@ -6,7 +6,3 @@ resource "aws_instance" "Test_instance" {
     Name = "terraform-ec2_1"
   }
 }
-
-resource "aws_s3_bucket" "my_bucket" {
-  bucket = var.bucket_name
-}
