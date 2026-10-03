@@ -7,8 +7,3 @@ variable "ami_id" {
   description = "AMI ID to use for the EC2 instance"
   default     = "ami-0854e0063283f3994"
 }
-
-variable "bucket_name"{
-  description = "production bucket name"
-  default     = "application-production-bucket-hyderabad"
-}
