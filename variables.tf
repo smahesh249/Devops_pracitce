@@ -12,3 +12,8 @@ variable "bucket_name"{
   description = "production bucket name"
   default     = "application-production-bucket-hyderabad"
 }
+
+variable "aws_region" {
+  description = "region to be created"
+  default     = "ap-southeast-2"
+} 
