@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniShop — Demo Store</title>
+<style>
+  :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; color:#172033; background:#f4f7fb; }
+  * { box-sizing:border-box; }
+  body { margin:0; }
+  header { background:#172554; color:white; padding:22px max(20px, calc((100% - 1000px)/2)); }
+  header .brand { font-size:1.35rem; font-weight:800; letter-spacing:.2px; }
+  header p { margin:6px 0 0; color:#c7d2fe; font-size:.95rem; }
+  main { max-width:1000px; margin:28px auto; padding:0 18px 40px; }
+  .summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:22px; }
+  .metric, .panel { background:white; border:1px solid #e4eaf3; border-radius:14px; padding:18px; box-shadow:0 4px 14px #15213b08; }
+  .metric span { display:block; color:#64748b; font-size:.88rem; }
+  .metric strong { display:block; margin-top:8px; font-size:1.55rem; }
+  nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  nav button { border:1px solid #d8e1ef; background:white; color:#334155; padding:11px 16px; border-radius:10px; font-weight:700; cursor:pointer; }
+  nav button.active { background:#2563eb; color:white; border-color:#2563eb; }
+  .panel h2 { margin:0 0 14px; font-size:1.15rem; }
+  .product-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  .product { border:1px solid #e5eaf2; border-radius:12px; padding:15px; }
+  .emoji { font-size:2.1rem; background:#f1f5f9; border-radius:10px; padding:12px; text-align:center; }
+  .product h3 { margin:12px 0 5px; font-size:1rem; }
+  .muted { color:#64748b; font-size:.9rem; }
+  .product-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:14px; }
+  .price { font-weight:800; }
+  .primary { background:#2563eb; color:white; border:0; border-radius:8px; padding:9px 12px; font-weight:700; cursor:pointer; }
+  .primary:disabled { opacity:.5; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:12px 8px; border-bottom:1px solid #e8edf5; font-size:.92rem; }
+  th { color:#64748b; font-weight:700; }
+  .pill { display:inline-block; padding:5px 9px; border-radius:999px; background:#dcfce7; color:#166534; font-size:.8rem; font-weight:700; }
+  .empty { text-align:center; padding:32px 10px; color:#64748b; }
+  .note { margin-top:16px; color:#64748b; font-size:.82rem; }
+  @media(max-width:650px) { .summary {grid-template-columns:1fr;} .product-grid {grid-template-columns:1fr;} table {display:block; overflow-x:auto;} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">🛍️ MiniShop</div>
+  <p>A tiny demo e-commerce dashboard — no real payments or backend.</p>
+</header>
+<main>
+  <section class="summary">
+    <div class="metric"><span>Products</span><strong>3</strong></div>
+    <div class="metric"><span>Orders placed</span><strong id="orderCount">0</strong></div>
+    <div class="metric"><span>Demo revenue</span><strong id="revenue">₹0</strong></div>
+  </section>
+  <nav aria-label="Store sections">
+    <button class="active" data-tab="shop">🛒 Shop</button>
+    <button data-tab="orders">📦 Orders <span id="orderBadge">0</span></button>
+    <button data-tab="payments">💳 Payments</button>
+  </nav>
+
+  <section class="panel tab" id="shop">
+    <h2>Featured products</h2>
+    <div class="product-grid" id="products"></div>
+  </section>
+  <section class="panel tab" id="orders" hidden>
+    <h2>Your orders</h2>
+    <div id="ordersContent"></div>
+  </section>
+  <section class="panel tab" id="payments" hidden>
+    <h2>Payment history</h2>
+    <div id="paymentsContent"></div>
+    <p class="note">Demo only: payments are simulated in your browser. No card details are collected and no money is charged.</p>
+  </section>
+</main>
+<script>
+const products = [
+  {id:1, name:"Everyday Backpack", description:"A simple bag for daily use", price:1299, emoji:"🎒"},
+  {id:2, name:"Wireless Headphones", description:"Demo audio accessory", price:1999, emoji:"🎧"},
+  {id:3, name:"Coffee Tumbler", description:"Reusable stainless tumbler", price:499, emoji:"☕"}
+];
+let orders = [];
+const money = n => "₹" + n.toLocaleString("en-IN");
+const productRoot = document.getElementById("products");
+productRoot.innerHTML = products.map(p => `
+  <article class="product">
+    <div class="emoji">${p.emoji}</div>
+    <h3>${p.name}</h3><div class="muted">${p.description}</div>
+    <div class="product-footer"><span class="price">${money(p.price)}</span>
+    <button class="primary" onclick="placeOrder(${p.id})">Buy now</button></div>
+  </article>`).join("");
+
+function placeOrder(id) {
+  const p = products.find(x => x.id === id);
+  const order = {id: "ORD-" + String(1001 + orders.length), product:p.name, amount:p.price,
+    date:new Date().toLocaleString(), status:"Confirmed", payment:"Demo paid"};
+  orders.unshift(order);
+  render();
+  showTab("orders");
+}
+function render() {
+  document.getElementById("orderCount").textContent = orders.length;
+  document.getElementById("orderBadge").textContent = orders.length;
+  document.getElementById("revenue").textContent = money(orders.reduce((s,o)=>s+o.amount,0));
+  const table = rows => `<table><thead><tr><th>ID</th><th>Item</th><th>Amount</th><th>Status</th></tr></thead><tbody>${rows.map(o=>`<tr><td>${o.id}</td><td>${o.product}</td><td>${money(o.amount)}</td><td><span class="pill">${o.status}</span></td></tr>`).join("")}</tbody></table>`;
+  document.getElementById("ordersContent").innerHTML = orders.length ? table(orders) : '<div class="empty">No orders yet. Go to Shop and click “Buy now”.</div>';
+  document.getElementById("paymentsContent").innerHTML = orders.length
+    ? `<table><thead><tr><th>Payment ID</th><th>Order</th><th>Method</th><th>Amount</th><th>Status</th></tr></thead><tbody>${orders.map((o,i)=>`<tr><td>PAY-${5001+i}</td><td>${o.id}</td><td>Demo checkout</td><td>${money(o.amount)}</td><td><span class="pill">Simulated</span></td></tr>`).join("")}</tbody></table>`
+    : '<div class="empty">No payments yet. Place a demo order to see payment records here.</div>';
+}
+function showTab(tab) {
+  document.querySelectorAll(".tab").forEach(el => el.hidden = el.id !== tab);
+  document.querySelectorAll("nav button").forEach(el => el.classList.toggle("active", el.dataset.tab === tab));
+}
+document.querySelectorAll("nav button").forEach(btn => btn.addEventListener("click", () => showTab(btn.dataset.tab)));
+render();
+</script>
+</body>
+</html>
