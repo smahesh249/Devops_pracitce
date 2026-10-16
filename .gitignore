@@ -32,4 +32,5 @@ terraform.rc
 # Sensitive/private key files
 *.pem
 *.key
-
+bash.exe.stackdump
+backend.tf
