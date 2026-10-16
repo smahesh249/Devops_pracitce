@@ -6,9 +6,23 @@ on:
 
 jobs:
   first-job:
-    runs-on: ubuntu-latest
     name: First workflow job
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Run echo command
-        run: echo "Its first GitHub workflow run"
+      - name: Print a message
+        run: echo "This is Job 1 - Step 1"
+
+      - name: Check Git version
+        run: git --version
+
+  second-job:
+    name: Second workflow job
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Print another message
+        run: echo "This is Job 2 - Step 1"
+
+      - name: Check Python version
+        run: python3 --version
