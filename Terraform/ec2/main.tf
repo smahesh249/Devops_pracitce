@@ -6,3 +6,18 @@ resource "aws_instance" "Test_instance" {
     Name = "terraform-ec2_1"
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
