@@ -8,7 +8,7 @@ variable "ami_id" {
   default     = "ami-0854e0063283f3994"
 }
 
-variable "bucket_name"{
+variable "bucket_name" {
   description = "production bucket name"
   default     = "application-production-bucket-hyderabad"
 }
