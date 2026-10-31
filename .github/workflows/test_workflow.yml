@@ -1,7 +1,15 @@
+
 name: Infra Apply
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select the deployment environment"
+        required: true
+        type: choice
+        options:
+          - production
 
 permissions:
   contents: read
@@ -28,11 +36,8 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_PRODUCTION_PLAN_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Verify AWS identity
-        run: aws sts get-caller-identity
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
@@ -62,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: terraform-plan
 
-    environment: production
+    environment: ${{ inputs.environment }}
 
     defaults:
       run:
