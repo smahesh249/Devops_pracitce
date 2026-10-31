@@ -1,28 +1,57 @@
 
-name: Test_workflow
+name: Infra Destroy
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select the environment to destroy"
+        required: true
+        type: choice
+        options:
+          - production
+      confirm_destroy:
+        description: "Type destroy to confirm"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: "true"
 
 jobs:
-  first-job:
-    name: First workflow job
+  terraform-destroy:
+    name: Terraform Destroy
+    if: inputs.confirm_destroy == 'destroy'
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./
 
     steps:
-      - name: Print a message
-        run: echo "This is Job 1 - Step 1"
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Check Git version
-        run: git --version
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
 
-  second-job:
-    name: Second workflow job
-    runs-on: ubuntu-latest
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
 
-    steps:
-      - name: Print another message
-        run: echo "This is Job 2 - Step 1"
+      - name: Terraform initialize
+        run: terraform init -input=false
 
-      - name: Check Python version
-        run: python3 --version
+      - name: Terraform destroy plan
+        run: terraform plan -destroy -input=false -out=destroy.tfplan
+
+      - name: Terraform destroy
+        run: terraform apply -input=false -auto-approve destroy.tfplan
