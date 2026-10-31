@@ -1,3 +1,4 @@
+
 name: Infra Apply
 
 on:
@@ -6,6 +7,12 @@ on:
 permissions:
   contents: read
   id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  AWS_ROLE_NAME: ${{ vars.AWS_ROLE_NAME }}
+  TF_IN_AUTOMATION: "true"
 
 jobs:
   terraform-plan:
@@ -17,10 +24,6 @@ jobs:
         shell: bash
         working-directory: Terraform
 
-    env:
-      AWS_REGION: ap-southeast-2
-      TF_IN_AUTOMATION: "true"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,11 +31,8 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Verify AWS identity
-        run: aws sts get-caller-identity
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
@@ -69,10 +69,6 @@ jobs:
         shell: bash
         working-directory: Terraform
 
-    env:
-      AWS_REGION: ap-southeast-2
-      TF_IN_AUTOMATION: "true"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -80,8 +76,8 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
