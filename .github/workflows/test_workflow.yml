@@ -100,5 +100,5 @@ jobs:
           name: terraform-plan
           path: ./
 
-      - name: Terraform apply
-        run: terraform apply -input=false -auto-approve tfplan
+      - name: Terraform destroy
+        run: terraform destroy -input=false -auto-approve tfplan
