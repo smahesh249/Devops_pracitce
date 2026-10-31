@@ -1,11 +1,10 @@
-
 name: Infra Apply
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Select the deployment environment"
+        description: "Choose the deployment environment"
         required: true
         type: choice
         options:
@@ -15,6 +14,9 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  TF_IN_AUTOMATION: "true"
+
 jobs:
   terraform-plan:
     name: Terraform Plan
@@ -23,11 +25,10 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: Terraform
+        working-directory: ./
 
     env:
-      AWS_REGION: ap-southeast-2
-      TF_IN_AUTOMATION: "true"
+      AWS_REGION: ${{ vars.AWS_REGION }}
 
     steps:
       - name: Checkout repository
@@ -36,8 +37,8 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
@@ -58,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: Terraform/tfplan
+          path: ./tfplan
           if-no-files-found: error
           retention-days: 1
 
@@ -72,11 +73,10 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: Terraform
+        working-directory: ./
 
     env:
-      AWS_REGION: ap-southeast-2
-      TF_IN_AUTOMATION: "true"
+      AWS_REGION: ${{ vars.AWS_REGION }}
 
     steps:
       - name: Checkout repository
@@ -85,8 +85,8 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
@@ -98,7 +98,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: Terraform
+          path: ./
 
       - name: Terraform apply
         run: terraform apply -input=false -auto-approve tfplan
