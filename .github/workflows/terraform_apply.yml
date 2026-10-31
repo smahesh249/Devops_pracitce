@@ -1,15 +1,18 @@
-
-name: Infra Apply
+name: Infra Destroy
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Choose the deployment environment"
+        description: "Select the environment to destroy"
         required: true
         type: choice
         options:
           - production
+      confirm_destroy:
+        description: "Type destroy to confirm"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -19,56 +22,10 @@ env:
   TF_IN_AUTOMATION: "true"
 
 jobs:
-  terraform-plan:
-    name: Terraform Plan
+  terraform-destroy:
+    name: Terraform Destroy
+    if: inputs.confirm_destroy == 'destroy'
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./
-
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-
-      - name: Terraform format check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform initialize
-        run: terraform init -input=false
-
-      - name: Terraform validate
-        run: terraform validate
-
-      - name: Terraform plan
-        run: terraform plan -input=false -out=tfplan
-
-      - name: Upload Terraform plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-plan
-          path: ./tfplan
-          if-no-files-found: error
-          retention-days: 1
-
-  terraform-apply:
-    name: Terraform Apply
-    runs-on: ubuntu-latest
-    needs: terraform-plan
-
     environment: ${{ inputs.environment }}
 
     defaults:
@@ -76,12 +33,12 @@ jobs:
         shell: bash
         working-directory: ./
 
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
 
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v6
@@ -89,17 +46,26 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
+      - name: Initialize Terraform with S3 backend
+        run: terraform init -input=false -reconfigure
 
-      - name: Terraform initialize
-        run: terraform init -input=false
+      - name: Verify remote state object
+        run: |
+          aws s3api head-object \
+            --bucket my-terraform-state-bucket-practice-real \
+            --key ec2-project/terraform.tfstate
 
-      - name: Download Terraform plan
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-plan
-          path: ./
+      - name: Check Terraform workspace
+        run: terraform workspace show
 
-      - name: Terraform apply
-        run: terraform apply -input=false -auto-approve tfplan
+      - name: List tracked resources
+        run: terraform state list
+
+      - name: Create destroy plan
+        run: terraform plan -destroy -input=false -out=destroy.tfplan
+
+      - name: Display destroy plan
+        run: terraform show destroy.tfplan
+
+      - name: Apply destroy plan
+        run: terraform apply -input=false -auto-approve destroy.tfplan
