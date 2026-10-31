@@ -1,1 +1,73 @@
+```yaml
+name: Infra Destroy
 
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select the environment to destroy"
+        required: true
+        type: choice
+        options:
+          - production
+      confirm_destroy:
+        description: "Type destroy to confirm"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  terraform-destroy:
+    name: Terraform Destroy
+    if: inputs.confirm_destroy == 'destroy'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Initialize Terraform with S3 backend
+        run: terraform init -input=false -reconfigure
+
+      - name: Verify remote state object
+        run: |
+          aws s3api head-object \
+            --bucket my-terraform-state-bucket-practice-real \
+            --key ec2-project/terraform.tfstate
+
+      - name: Check Terraform workspace
+        run: terraform workspace show
+
+      - name: List tracked resources
+        run: terraform state list
+
+      - name: Create destroy plan
+        run: terraform plan -destroy -input=false -out=destroy.tfplan
+
+      - name: Display destroy plan
+        run: terraform show destroy.tfplan
+
+      - name: Apply destroy plan
+        run: terraform apply -input=false -auto-approve destroy.tfplan
+```
