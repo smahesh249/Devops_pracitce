@@ -1,4 +1,4 @@
-```yaml
+
 name: Infra Destroy
 
 on:
@@ -65,4 +65,4 @@ jobs:
 
       - name: Destroy infrastructure
         run: terraform apply -input=false -auto-approve destroy.tfplan
-```
+
