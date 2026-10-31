@@ -1,28 +1,99 @@
-
-name: Test_workflow
+name: Infra Apply
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  first-job:
-    name: First workflow job
+  terraform-plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        shell: bash
+        working-directory: Terraform
+
+    env:
+      AWS_REGION: ap-southeast-2
+      TF_IN_AUTOMATION: "true"
+
     steps:
-      - name: Print a message
-        run: echo "This is Job 1 - Step 1"
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Check Git version
-        run: git --version
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-  second-job:
-    name: Second workflow job
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform initialize
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: Terraform/tfplan
+          if-no-files-found: error
+          retention-days: 1
+
+  terraform-apply:
+    name: Terraform Apply
     runs-on: ubuntu-latest
+    needs: terraform-plan
+
+    environment: production
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: Terraform
+
+    env:
+      AWS_REGION: ap-southeast-2
+      TF_IN_AUTOMATION: "true"
 
     steps:
-      - name: Print another message
-        run: echo "This is Job 2 - Step 1"
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Check Python version
-        run: python3 --version
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform initialize
+        run: terraform init -input=false
+
+      - name: Download Terraform plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: Terraform
+
+      - name: Terraform apply
+        run: terraform apply -input=false -auto-approve tfplan
