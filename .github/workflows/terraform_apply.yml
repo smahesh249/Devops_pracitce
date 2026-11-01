@@ -1,13 +1,14 @@
-
-name: Infra Destroy
+name: Infra Apply
 
 on:
   workflow_dispatch:
     inputs:
-      confirm_destroy:
-        description: "Type destroy to confirm"
+      environment:
+        description: "Choose the deployment environment"
         required: true
-        type: string
+        type: choice
+        options:
+          - production
 
 permissions:
   contents: read
@@ -17,8 +18,8 @@ env:
   TF_IN_AUTOMATION: "true"
 
 jobs:
-  destroy:
-    if: inputs.confirm_destroy == 'destroy'
+  terraform-plan:
+    name: Terraform Plan
     runs-on: ubuntu-latest
 
     defaults:
@@ -26,43 +27,78 @@ jobs:
         shell: bash
         working-directory: ./
 
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Initialize Terraform
-        run: terraform init -input=false -reconfigure
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
 
-      - name: Check Terraform state
-        run: |
-          terraform workspace show
-          terraform state list
+      # - name: Terraform format check
+      #   run: terraform fmt -check -recursive
 
-      - name: Create destroy plan
-        run: terraform plan -destroy -input=false -out=destroy.tfplan
+      - name: Terraform initialize
+        run: terraform init -input=false
 
-      - name: Stop if plan is empty
-        run: |
-          terraform show -json destroy.tfplan > destroy.json
-          COUNT=$(jq '[.resource_changes[]? | select(.change.actions | index("delete"))] | length' destroy.json)
-          echo "Resources planned for deletion: $COUNT"
-          if [ "$COUNT" -eq 0 ]; then
-            echo "No resources are tracked for destruction. Stopping safely."
-            exit 1
-          fi
+      - name: Terraform validate
+        run: terraform validate
 
-      - name: Show destroy plan
-        run: terraform show destroy.tfplan
+      - name: Terraform plan
+        run: terraform plan -input=false -out=tfplan
 
-      - name: Destroy infrastructure
-        run: terraform apply -input=false -auto-approve destroy.tfplan
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: ./tfplan
+          if-no-files-found: error
+          retention-days: 1
 
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+
+    environment: ${{ inputs.environment }}
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AWS_ROLE_NAME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform initialize
+        run: terraform init -input=false
+
+      - name: Download Terraform plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: ./
+
+      - name: Terraform destroy
+        run: terraform destroy -input=false -auto-approve tfplan
