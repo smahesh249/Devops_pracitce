@@ -21,22 +21,19 @@ jobs:
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
-
-    defaults:
+  defaults:
       run:
         shell: bash
-<<<<<<< HEAD
         working-directory: terraform
-
-    env:
+  env:
       AWS_REGION: ap-south-1
-      TF_IN_AUTOMATION: true
-=======
-        working-directory: ./
-
-    env:
+      TF_IN_AUTOMATION: "true"
+      
+      working-directory: terraform
+        
+  env:
       AWS_REGION: ${{ vars.AWS_REGION }}
->>>>>>> e13a5b3 (Merge pull request #11 from smahesh249/test_workflow)
+  
 
     steps:
       - name: Checkout repository
